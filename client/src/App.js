@@ -3,25 +3,30 @@ import UrlInput from './components/UrlInput';
 import ChatInterface from './components/ChatInterface';
 
 function App() {
-  const [showChat, setShowChat] = useState(false); // Add state to control UI transition
+  const [showChat, setShowChat] = useState(false);
 
   const handleUrlSubmitted = () => {
-    setShowChat(true); // Transition to the ChatInterface
+    setShowChat(true); // Transition from URL input to the chat interface.
   };
 
   useEffect(() => {
-    // This effect will run when the component is unmounted (page refresh or navigating to a new page)
+    // Cleanup effect: when the component is unmounted (e.g., on page refresh or navigation),
+    // send a POST request to delete the index on the backend.
     return () => {
-      fetch('http://localhost:5000/delete-index', {
+      // Using relative URL to let the proxy (if configured) forward to http://localhost:5000
+      fetch('/delete-index', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
       })
-        .then((response) => {
+        .then(response => {
           if (!response.ok) {
             console.error('Error deleting index:', response.statusText);
+          } else {
+            console.log('Successfully deleted index');
           }
         })
-        .catch((error) => {
-          console.error('Error:', error);
+        .catch(error => {
+          console.error('Error during delete-index fetch:', error);
         });
     };
   }, []);

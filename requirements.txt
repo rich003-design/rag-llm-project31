@@ -2,7 +2,7 @@ flask
 requests
 beautifulsoup4
 openai
-pinecone-client
+pinecone
 flask-cors
 python-dotenv
 gunicorn

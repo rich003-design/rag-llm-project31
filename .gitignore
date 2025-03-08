@@ -3,4 +3,4 @@ myenv/
 *.py[cod]
 *$py.class
 __pycache__/
-.DS_Store
+.DS_Storevenv/

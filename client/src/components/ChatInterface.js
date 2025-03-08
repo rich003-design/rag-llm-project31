@@ -6,31 +6,37 @@ function ChatInterface() {
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef(null);
 
+  // Scroll to the bottom of the chat messages
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
-  useEffect(scrollToBottom, [messages]);
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSendMessage = async (event) => {
     event.preventDefault();
     if (!inputText.trim()) return; // Prevent sending empty messages
-    
-    // Get a snapshot of the current messages + the user's message
-    // to send to the server to get an answer
-    const userMessage = { text: inputText, isBot: false };
-    const body = {
-      chatHistory: [...messages, userMessage],
-      question: inputText,
-    }    
 
-    // Add a new empty bot message to the UI
+    // Create user's message and add to history
+    const userMessage = { text: inputText, isBot: false };
+    const updatedHistory = [...messages, userMessage];
+
+    // Add a new empty bot message for streaming response
     const botMessage = { text: '', isBot: true };
-    setMessages([...messages, userMessage, botMessage]);
+    setMessages([...updatedHistory, botMessage]);
     setInputText('');
 
-    // Send the user's message to the server and wait for a response.
-    // This response will be streamed to this component.
+    // Prepare request body
+    const body = {
+      chatHistory: updatedHistory,
+      question: inputText,
+    };
+
+    // Send the query to the server
     const response = await fetch('http://localhost:5000/handle-query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -39,37 +45,40 @@ function ChatInterface() {
 
     if (!response.body) return;
 
-    // Set up the infrastructure to stream the response data
-    let decoder = new TextDecoderStream();
-    const reader = response.body.pipeThrough(decoder).getReader()    
-    let accumulatedAnswer = ""
+    // Stream the response using a TextDecoderStream
+    const decoder = new TextDecoderStream();
+    const reader = response.body.pipeThrough(decoder).getReader();
+    let accumulatedAnswer = "";
 
     while (true) {
-      var { value, done } = await reader.read();
+      const { value, done } = await reader.read();
       if (done) break;
       accumulatedAnswer += value;
-      setMessages(currentHistory => {
-        const updatedHistory = [...currentHistory]
-        const lastChatIndex = updatedHistory.length - 1
+
+      // Capture the current accumulated answer in a local variable
+      const newAnswer = accumulatedAnswer;
+      setMessages((currentHistory) => {
+        const updatedHistory = [...currentHistory];
+        const lastChatIndex = updatedHistory.length - 1;
         updatedHistory[lastChatIndex] = {
           ...updatedHistory[lastChatIndex],
-          text: accumulatedAnswer
-        }
-        return updatedHistory
-      })
+          text: newAnswer
+        };
+        return updatedHistory;
+      });
     }
   };
 
   return (
     <div className="chat-container">
       <header className="chat-header">URL Question & Answer</header>
-      {
-        messages.length === 0 
-          && 
+      {messages.length === 0 && (
         <div className="chat-message bot-message">
-          <p className="initial-message">Hi there! I'm a bot trained to answer questions about the URL you entered. Try asking me a question below!</p>
+          <p className="initial-message">
+            Hi there! I'm a bot trained to answer questions about the URL you entered. Try asking me a question below!
+          </p>
         </div>
-      }
+      )}
       <div className="chat-messages">
         {messages.map((message, index) => (
           <ChatMessage key={index} message={message} />
@@ -83,7 +92,6 @@ function ChatInterface() {
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
         />
-
       </form>
     </div>
   );
